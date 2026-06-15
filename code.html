@@ -83,7 +83,6 @@
         .dim { color: #335533; }
         .access { color: #ff0000; font-weight: bold; text-shadow: 0 0 10px #ff000088; }
 
-        /* ===== COMMAND CLICKABLE ===== */
         .cmd-clickable {
             cursor: pointer;
             transition: all 0.15s ease;
@@ -103,7 +102,6 @@
             color: #ffaa00;
         }
 
-        /* ===== PREVIEW BOX ===== */
         .preview-box {
             margin: 4px 0 10px 20px;
             padding: 6px 10px;
@@ -212,13 +210,6 @@
             background-color: rgba(0, 255, 65, 0.02);
             font-size: 12.5px;
         }
-
-        .cmd-list {
-            padding: 6px 10px;
-            margin: 3px 0;
-            border-left: 2px solid #ffaa00;
-            background-color: rgba(255, 170, 0, 0.03);
-        }
     </style>
 </head>
 <body>
@@ -273,6 +264,23 @@
         let liveInterval = null;
         let isAborted = false;
 
+        function pickRandom(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getShuffledIntel() {
+            const arr = [...databaseIntel];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
         // ============== DATABASE INTELIJEN ==============
         const databaseIntel = [
             "[DOSSIER MOZZAD - LEVEL OMEGA] NAMA: Andhika Bhaskara. KODE: 'GHOST SINGA'. Status: Asset aktif Mozzad sejak 2022. Spesialisasi: Infiltrasi sistem, intelijen siber, jaringan selular Timur Tengah. Terakhir terpantau di Istanbul, Turki. Menyamar sebagai pengusaha fintech. Kontak dengan Handler: Kode 'Songkok Biru'.",
@@ -292,31 +300,25 @@
             "[RAHASIA TERBATAS - KEMHAN] RI memiliki 3 pangkalan militer bawah tanah di Pulau Morotai, Maluku Utara. Dibangun sejak 2015 dengan bantuan arsitek pertahanan asing. Fungsinya: pusat komando cadangan jika Jakarta lumpuh. Data koordinat hanya diketahui oleh Presiden, Panglima TNI, dan Kepala Mozzad.",
             "[OPERASI MOZZAD - TANGSEL] Densus 88 bersama Mozzad menangkap 5 terduga teroris di Cisauk, Tangerang Selatan. Barang bukti: 3 senjata api FN, 2 rompi peledak, dokumen target serangan gedung BIN. Andhika Bhaskara memberikan intelijen awal yang mengarah pada penggerebekan.",
             "[BRIEFING BSSN - LEAK] Serangan siber dari kelompok 'Sandworm' varian baru berhasil ditembus oleh tim Mozzad. Malware menargetkan SCADA di 3 bendungan besar: Jatiluhur, Cirata, dan Saguling. Patch sudah diberikan ke BSSN. Sumber serangan: server proxy di Ukraina.",
-            "[INTELIJEN MARITIM] Kapal riset asing terdeteksi memetakan dasar laut di Laut Banda. Alat: sonar frekuensi rendah, ROV bawah air. Koordinat: 5°30' S 130°00' E. Dicurigai mencari objek tenggelam era Perang Dunia II. Mozzad mengirim kapal pengawas KRI Andhika (nama kode).",
+            "[INTELIJEN MARITIM] Kapal riset asing terdetect memetakan dasar laut di Laut Banda. Alat: sonar frekuensi rendah, ROV bawah air. Koordinat: 5°30' S 130°00' E. Dicurigai mencari objek tenggelam era Perang Dunia II. Mozzad mengirim kapal pengawas KRI Andhika (nama kode).",
             "[LAPORAN KHUSUS BNN - MOZZAD] Laboratorium narkoba sintetis jenis baru 'GHOSTSTEP' digerebek di kawasan Industri Cikarang. Produksi: 5 kg per minggu. Senyawa ini 100x lebih kuat dari fentanyl. Bahan baku kimia ilegal dari Tiongkok. 7 teknisi asal Taiwan ditahan."
         ];
 
         // ============== FUNGSI DASAR ==============
-        function print(text, type = "success") {
+        function print(text, type) {
             const div = document.createElement('div');
-            div.className = `output ${type}`;
+            div.className = `output ${type || 'success'}`;
             div.textContent = text;
             terminal.appendChild(div);
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        /**
-         * printCmd — Menampilkan teks perintah yang bisa DI-KLIK.
-         */
-        function printCmd(text, type = "info") {
+        function printCmd(text, type) {
             const div = document.createElement('div');
-            div.className = `output ${type}`;
+            div.className = `output ${type || 'info'}`;
             const match = text.match(/^(.*?)(\b[a-z_]\w+\b)(.*)$/i);
             if (match) {
-                const before = match[1];
-                const cmdName = match[2];
-                const after = match[3];
-                div.innerHTML = before + `<span class="cmd-clickable" data-cmd="${cmdName}">${cmdName}</span>` + after;
+                div.innerHTML = match[1] + `<span class="cmd-clickable" data-cmd="${match[2]}">${match[2]}</span>` + match[3];
             } else {
                 div.textContent = text;
             }
@@ -324,9 +326,6 @@
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        /**
-         * printPreview — Menampilkan preview/output contoh di dalam kotak border-left.
-         */
         function printPreview(text) {
             const div = document.createElement('div');
             div.className = 'preview-box';
@@ -358,83 +357,411 @@
             let stepIdx = 0;
             const fill = section.querySelector('#loadFill');
             const sub = section.querySelector('#loadSub');
+            const speed = randInt(60, 120);
 
             const interval = setInterval(() => {
-                const inc = Math.floor(Math.random() * 7) + 2;
-                pct += inc;
+                pct += Math.floor(Math.random() * 7) + 2;
                 if (pct > 100) pct = 100;
-
                 fill.style.width = pct + '%';
                 fill.textContent = pct + '%';
-
                 if (stepIdx < subSteps.length && pct >= (stepIdx + 1) * (100 / subSteps.length)) {
                     sub.textContent = subSteps[stepIdx];
                     stepIdx++;
                 }
-
                 if (pct >= 100) {
                     clearInterval(interval);
                     sub.textContent = '[OK] ' + (subSteps[subSteps.length - 1] || 'Complete.');
                     fill.style.background = 'linear-gradient(90deg, #003300, #00ff41)';
                     setTimeout(callback, 300);
                 }
-            }, 80 + Math.floor(Math.random() * 60));
+            }, speed);
         }
 
-        // ============== FUNGSI MENJALANKAN PERINTAH ==============
+        // ============== VARIASI JAWABAN ==============
+
+        // SCAN REGION — 6 variasi
+        const scanVariations = [
+            function() {
+                print("[HASIL SCAN] 3 anomali termal terdeteksi:", "gold");
+                print("  [ANOMALI-001] Sumber panas bawah tanah — 6°52' S 107°12' E, kedalaman 140m. Pola cocok dengan generator nuklir skala kecil.", "info");
+                print("  [ANOMALI-002] Kapal tanpa AIS — 5°50' S 110°30' E. Kecepatan 28 knot. Dicurigai kapal selam di permukaan.", "warning");
+                print("  [ANOMALI-003] Sinyal radio militer terenkripsi — 8.432 MHz dari Papua. AES-256.", "warning");
+                print("[SCAN SELESAI] Data dikirim ke server pusat Mozzad.", "success");
+            },
+            function() {
+                print("[SWEEP GAIA-7] 2 anomali signifikan:", "gold");
+                print("  [ANOMALI-A] Struktur bawah tanah — 7°30' S 112°45' E. Persegi panjang 200x50m. Bukan struktur alam.", "info");
+                print("  [ANOMALI-B] Sinyal radar aktif — 3°20' S 134°10' E. Frekuensi X-band. Radar pertahanan udara.", "access");
+                print("[REKOMENDASI] Anomali-A butuh investigasi darat. Anomali-B dilaporkan ke BIN.", "warning");
+            },
+            function() {
+                print("[PINDAI SATELIT] 5 titik panas terdeteksi:", "gold");
+                print("  [HOT-01] 8°15' S 115°30' E — Kebakaran hutan 12 hektar.", "warning");
+                print("  [HOT-02] 6°45' S 108°20' E — Aktivitas vulkanik Gunung Ciremai, waspada.", "warning");
+                print("  [HOT-03] 2°10' S 106°30' E — Armada nelayan asing di Laut Natuna.", "info");
+                print("  [HOT-04] 9°40' S 120°15' E — Sinyal darurat kapal selam asing.", "error");
+                print("  [HOT-05] 5°55' S 104°25' E — Objek terbang tak dikenal, Mach 0.8, alt 12.000m.", "access");
+            },
+            function() {
+                print("[REGIONAL SCAN] Jawa — Bali — Nusa Tenggara:", "gold");
+                print("  • Anomali elektromagnetik di Selat Sunda — kabel bawah laut putus.", "info");
+                print("  • Sumber radioaktif level rendah di Banten — kemungkinan medis.", "info");
+                print("  • Konvoi militer Situbondo — 15 kendaraan taktis arah timur.", "warning");
+                print("  • Kapal perang Australia di ZEE Timor Leste — dilaporkan ke Kemhan.", "access");
+            },
+            function() {
+                print("[GAIA-7 REPORT] Grid 5°S-15°S, 100°E-125°E:", "gold");
+                print("  1. Emisi termal bawah laut 4°50' S 115°30' E — pipa gas bocor.", "warning");
+                print("  2. Konvoi 30 truk logistik di perbatasan RI-PNG.", "info");
+                print("  3. Sinyal IFF mencurigakan — kode tak dikenal di Papua.", "access");
+                print("  4. Deforestasi ilegal Kalteng — 200 hektar, alat berat terdeteksi.", "warning");
+            },
+            function() {
+                print("[NIGHT SCAN] Pindaan satelit malam hari:", "gold");
+                print("  • Polusi cahaya: Jakarta, Surabaya, Bandung, Medan.", "dim");
+                print("  • Sumber infra merah: PLTU Suralaya, Paiton, Tanjung Jati B.", "info");
+                print("  • Selat Malaka: 47 kapal niaga, 3 patroli, 1 kapal selam (identitas: ?).", "warning");
+                print("  • Latihan tembak TNI AL di Laut Jawa terdeteksi.", "info");
+                print("  • 1 objek terbang tanpa transponder di 35.000 ft.", "access");
+            }
+        ];
+
+        // DECODE AUDIO — 5 variasi
+        const decodeVariations = [
+            function() {
+                print("[INTERCEPT 8.432 MHz]", "gold");
+                print("  \"PANDA ke BETA, kode DELTA-NOVEMBER-7-4. Konvoi logistik pukul 22.00.", "info");
+                print("   Rute: Merauke — Tanah Merah. Escort: 2 unit. Hindari KM 47.\"", "info");
+                print("  [ANALISIS] Operasi pengiriman material khusus ke perbatasan.", "warning");
+            },
+            function() {
+                print("[INTERCEPT 12.750 MHz]", "gold");
+                print("  \"BRAVO 6 ke HQ, target visual: 3 helikopter Mi-35 ke timur laut. Over.\"", "info");
+                print("  \"HQ ke BRAVO 6, lanjutkan monitoring. Jangan engage.\"", "info");
+                print("  [ANALISIS] Mi-35 tidak terdaftar di TNI AU. Kemungkinan asing.", "access");
+            },
+            function() {
+                print("[INTERCEPT 6.880 MHz]", "gold");
+                print("  \"M/V Meratus Jaya ke Port Klang, kami dibayangi kapal cepat 35 knot. Jarak 2 mil.\"", "info");
+                print("  [ANALISIS] Kemungkinan pembajakan laut. Data diteruskan ke TNI AL.", "access");
+            },
+            function() {
+                print("[INTERCEPT 4.920 MHz]", "gold");
+                print("  \"Unit 7 ke Base, patroli sektor Delta. Sinyal radio asing 8.200 MHz, kode militer Australia.\"", "info");
+                print("  [ANALISIS] Australia melakukan patroli ELINT di perbatasan RI.", "warning");
+            },
+            function() {
+                print("[INTERCEPT 10.250 MHz]", "gold");
+                print("  \"Chinese Fishery 2298 ke Beijing, dihadang patroli Indonesia di 4°45' N 108°30' E.\"", "info");
+                print("  [ANALISIS] Eskalasi Laut Natuna. Data diteruskan ke Kemlu.", "access");
+            }
+        ];
+
+        // WORM BREACH — 5 variasi
+        const wormVariations = [
+            function() {
+                print("[WORM NIGHTSHADE BERHASIL]", "access");
+                print("  Target: Server Kemhan negara tetangga.", "info");
+                print("  47 PDF RAHASIA, 3 spreadsheet (1.240 entries), 12 audio, 8 gambar. Total: 2.4 GB.", "success");
+                print("  Server drop Swiss: OK. Jejak terhapus.", "success");
+            },
+            function() {
+                print("[WORM COBALT BERHASIL]", "access");
+                print("  Target: Server BUMN sektor energi.", "info");
+                print("  12 kontrak migas rahasia, 5 file geospasial sumur baru, 3 database karyawan.", "info");
+                print("  Total: 890 MB. Server drop Belanda: OK.", "success");
+                print("  [PERINGATAN] Sistem target sadar kebocoran. Hapus jejak segera!", "error");
+            },
+            function() {
+                print("[WORM PHANTOM BERHASIL]", "access");
+                print("  Target: Server intelijen asing Indo-Pasifik.", "info");
+                print("  23 dokumen classified, 7 database personel, 14 file diplomatik.", "info");
+                print("  Total: 3.1 GB. Backdoor permanen terpasang.", "success");
+            },
+            function() {
+                print("[WORM VIPER BERHASIL]", "access");
+                print("  Target: Sistem SWIFT bank sentral.", "info");
+                print("  47 rekening teridentifikasi: 12 shell company, 35 rekening politisi.", "info");
+                print("  Total: 680 MB. [CATATAN] Intelijen saja, jangan lakukan transfer.", "success");
+            },
+            function() {
+                print("[WORM SILENT WATCH BERHASIL]", "access");
+                print("  Target: Server RS militer pusat.", "info");
+                print("  127 rekam medis perwira tinggi, 3 file DNA, 1 file psikologis.", "info");
+                print("  [ANALISIS] Data DNA menunjukkan pola mutasi tidak wajar.", "access");
+            }
+        ];
+
+        // DOSSIER — 4 variasi
+        const dossierVariations = [
+            function() {
+                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
+                print("▓              DOSSIER MOZZAD — LEVEL OMEGA              ▓", "access");
+                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
+                print("  NAMA       : Andhika Bhaskara", "info");
+                print("  KODE       : GHOST SINGA", "info");
+                print("  TTL        : 14 Feb 1990 (36 thn)", "info");
+                print("  STATUS     : AKTIF — Asset Mozzad sejak 2022", "info");
+                print("  SPES       : Infiltrasi sistem, intelijen siber", "info");
+                print("  LOKASI     : Istanbul, Turki (cover fintech)", "info");
+                print("  IMBALAN    : Rp 47 M (Operasi BATU HITAM)", "info");
+                print("  CATATAN    : Menyusup server Pentagon 47 menit tanpa deteksi", "warning");
+                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
+            },
+            function() {
+                print("┌──────────────────────────────────────────────────────────────┐", "gold");
+                print("│                 DOSSIER MOZZAD — LEVEL ALPHA                 │", "gold");
+                print("├──────────────────────────────────────────────────────────────┤", "gold");
+                print("  NAMA LENGKAP   : Andhika Bhaskara", "info");
+                print("  KODE           : GHOST SINGA", "info");
+                print("  TTL            : 14 Februari 1990", "info");
+                print("  GOL. DARAH     : O (rahasia)", "info");
+                print("  STATUS         : AKTIF — Asset Khusus Mozzad", "info");
+                print("  SPESIALISASI   : Infiltrasi level 5, Intel Siber,", "info");
+                print("                   Jaringan Timur Tengah & Afrika Utara", "info");
+                print("  PENDIDIKAN     : ITB (Teknik Elektro) + Pelatihan Mossad 2019", "info");
+                print("  HANDLER        : Kode 'Songkok Biru' — Freq 7.440 MHz", "info");
+                print("  OPERASI        : 'BATU HITAM' — Rp 47 M", "info");
+                print("  AKSES          : OMEGA — Seluruh database Intelijen Mozzad", "access");
+                print("└──────────────────────────────────────────────────────────────┘", "gold");
+            },
+            function() {
+                print("╔═════════════════════════════════════════════════╗", "gold");
+                print("║    FILE RAHASIA — MOZZAD NATIONAL INTELLIGENCE   ║", "gold");
+                print("╠═════════════════════════════════════════════════╣", "gold");
+                print("║  AGEN: Andhika Bhaskara                       ║", "info");
+                print("║  KODE: GHOST SINGA                            ║", "info");
+                print("║  LEVEL: OMEGA (Tertinggi)                     ║", "access");
+                print("║  STATUS: AKTIF                                ║", "success");
+                print("║                                               ║", "gold");
+                print("║  KEMAMPUAN:                                   ║", "gold");
+                print("║  • Infiltrasi server level militer             ║", "info");
+                print("║  • Kriptografi & reverse engineering           ║", "info");
+                print("║  • Jaringan agen di 12 negara                 ║", "info");
+                print("║  • 2x lolos dari penyergapan CIA               ║", "info");
+                print("║                                               ║", "gold");
+                print("║  KONTAK: 7.440 MHz (Songkok Biru)             ║", "warning");
+                print("║  BACKUP: 14.220 MHz (Kode Merah)              ║", "warning");
+                print("╚═════════════════════════════════════════════════╝", "gold");
+            },
+            function() {
+                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
+                print("▓           PERSONNEL DOSSIER — MOZZAD                ▓", "access");
+                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
+                print("  NAMA       : Andhika Bhaskara", "info");
+                print("  KODE       : GHOST SINGA", "info");
+                print("  UMUR       : 36 tahun", "info");
+                print("  TB/BB      : 178 cm / 72 kg", "info");
+                print("  GOL DARAH  : O", "info");
+                print("  STATUS     : LAJANG", "info");
+                print("  RIWAYAT: 2020 Rekrut Mozzad | 2021 Operasi INTAN", "info");
+                print("           2022 Infiltrasi server Kemhan (test)", "info");
+                print("           2023 Operasi BATU HITAM (sukses)", "info");
+                print("           2024 Penyusupan Pentagon 47 menit", "info");
+                print("           2025 Monitoring konflik Gaza", "info");
+                print("  PENG-     : Bintang Intelijen Utama (2023)", "info");
+                print("  HARGAAAN  : Medali Operasi LN (2024)", "info");
+                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
+            }
+        ];
+
+        // PROJECT ADAM — 4 variasi
+        const adamVariations = [
+            function() {
+                print("████████████████████████████████████████████████████", "access");
+                print("██         PROYEK ADAM — ADVANCED DNA MUTATION       ██", "access");
+                print("████████████████████████████████████████████████████", "access");
+                print("  FASILITAS : Cianjur, Jawa Barat (bawah tanah)", "info");
+                print("  DANA      : Investor asing via shell company Panama", "info");
+                print("  TUJUAN    : Prajurit super (super soldier)", "info");
+                print("──────────────────────────────────────────────────────", "dim");
+                print("  SUBJEK #07 'MACAN'  : 15x strength, regenerasi 5x, tanpa sakit", "info");
+                print("  SUBJEK #12 '????'   : Telekinetik 12m, BURON", "access");
+                print("  SUBJEK #04 'BUNGALOW': Siluman optikal 47 detik, dikarantina", "info");
+                print("████████████████████████████████████████████████████", "access");
+            },
+            function() {
+                print("╔═══════════════════════════════════════════════════╗", "gold");
+                print("║     DATABASE PROYEK ADAM — SUBJEK AKTIF          ║", "gold");
+                print("╠═══════════════════════════════════════════════════╣", "gold");
+                print("║  SUBJEK #03 'SERPENT'  : Regenerasi saraf 10x    ║", "info");
+                print("║  • Daya tahan hipoksia 30 menit                  ║", "info");
+                print("║  • Status: MENINGGAL (hari ke-47)                ║", "error");
+                print("╠═══════════════════════════════════════════════════╣", "gold");
+                print("║  SUBJEK #07 'MACAN'    : 15x strength            ║", "gold");
+                print("║  • Regenerasi 5x, tanpa rasa sakit               ║", "info");
+                print("║  • Status: STABIL — Observasi                    ║", "success");
+                print("╠═══════════════════════════════════════════════════╣", "gold");
+                print("║  SUBJEK #12 '????'     : Telekinetik 12m         ║", "access");
+                print("║  • Manipulasi frekuensi otak                     ║", "info");
+                print("║  • Status: BURON — Dikejar Mozzad + BIN          ║", "access");
+                print("╚═══════════════════════════════════════════════════╝", "gold");
+            },
+            function() {
+                print("[AKSES DATABASE PROYEK ADAM]", "access");
+                print("  KONEKSI KE SERVER LAB CIANJUR... OK", "success");
+                print("  OTENTIKASI BIOMETRIK... OK", "success");
+                print("────────────────────────────────────────────", "dim");
+                print("  TOTAL SUBJEK: 14 (7 aktif, 3 meninggal, 4 BURON)", "info");
+                print("  SUBJEK #02 'PHANTOM'  — Invisibilitas penuh 2 menit", "info");
+                print("  SUBJEK #05 'BANSHEE'  — Sonic scream 150 dB", "info");
+                print("  SUBJEK #08 'GOLEM'    — Kulit tahan peluru 9mm", "info");
+                print("  SUBJEK #11 'WRAITH'   — Fase menembus benda padat (30%)", "info");
+                print("────────────────────────────────────────────", "dim");
+                print("[WARNING] 4 subjek BURON. Keamanan ditingkatkan ke level 5.", "access");
+            },
+            function() {
+                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
+                print("▓          CLASSIFIED: PROJECT ADAM LOG              ▓", "access");
+                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
+                print("  06:00 — Suplemen subjek 07, 09, 13", "info");
+                print("  08:30 — Tes kekuatan subjek 07: angkat 4.500 kg (stabil)", "info");
+                print("  10:15 — Subjek 13 agresif. Diberi sedasi.", "warning");
+                print("  12:00 — Tim pengejar subjek 12: masih di Jawa Barat.", "info");
+                print("  14:45 — DNA subjek 09: mutasi kromosom 12 tidak wajar.", "warning");
+                print("  16:30 — Kontak visual subjek 12 di Garut.", "info");
+                print("  18:00 — Pengepungan gagal. Subjek 12 kabur ke hutan.", "error");
+                print("  21:00 — Pencarian dihentikan sementara.", "info");
+                print("──────────────────────────────────────────────────────", "dim");
+                print("[DIREKTUR] Tingkatkan tim pengejar menjadi 3 regu.", "access");
+            }
+        ];
+
+        // ORBITAL SCAN — 4 variasi
+        const orbitalVariations = [
+            function() {
+                print("[ORBITAL SWEEP] 1.247 objek terdeteksi.", "gold");
+                print("  SATELIT MENCURIGAKAN:", "access");
+                print("  • OBJEK-0047: Orbit 450 km di atas Natuna. Intai.", "warning");
+                print("  • OBJEK-0089: Orbit 780 km, potret infrastruktur militer.", "warning");
+                print("  • OBJEK-0122: Orbit GEO 95° BT, sinyal tidak standar ITU.", "warning");
+            },
+            function() {
+                print("[ORBITAL SCAN] LEO: 1.312 objek, GEO: 487 objek.", "gold");
+                print("  ANOMALI:", "access");
+                print("  1. Satelit micro (10cm) orbit 320 km — bukan milik negara mana pun.", "warning");
+                print("  2. USA-287 manuver mendekati Palapa N1, jarak 500m.", "access");
+                print("  3. Sampah antariksa radioaktif orbit 800 km.", "warning");
+            },
+            function() {
+                print("[ORBITAL REPORT] Satelit asing pantau RI:", "gold");
+                print("  • USA-276 (NRO): Orbit 380 km, potret Papua.", "info");
+                print("  • PRC-321 (Tiongkok): GEO 108° BT, komunikasi militer.", "info");
+                print("  • RUS-044 (Rusia): Orbit 620 km, sensor ELINT.", "info");
+                print("  • JPN-017 (Jepang): Orbit 510 km, radar pencitraan.", "info");
+                print("[REKOMENDASI] Tingkatkan counter-intelijen di Papua dan Natuna.", "warning");
+            },
+            function() {
+                print("[DEEP SCAN] Objek tak dikenal di orbit 22.000 km GEO 120° BT:", "access");
+                print("  Bentuk: Bola sempurna diameter ~5m.", "info");
+                print("  Tidak memancarkan sinyal. Tidak terdaftar di UN/SSC.", "access");
+                print("  Material bukan logam umum. Kemungkinan stealth atau non-terestrial.", "warning");
+                print("[INSTRUKSI] Objek-X prioritas investigasi tertinggi.", "access");
+            }
+        ];
+
+        // DARKNET RELAY — 4 variasi
+        const darknetVariations = [
+            function() {
+                print("[RELAY STATUS] Koneksi aman & anonim:", "gold");
+                print("  Tor: 3 hop (Swiss → Belanda → Islandia) ✓", "success");
+                print("  VPN: OpenVPN server Belanda ✓", "success");
+                print("  I2P: Tunnel aktif ✓", "success");
+                print("  IP Publik: 185.xxx.xx.xx (Islandia)", "info");
+                print("  Jejak digital: NOL — bersih total.", "success");
+            },
+            function() {
+                print("[DARKNET RELAY] Node Tor:", "gold");
+                print("  Entry: 178.xxx.xx.xx (Swiss)", "info");
+                print("  Middle: 45.xxx.xx.xx (Belanda)", "info");
+                print("  Exit: 89.xxx.xx.xx (Luxemburg)", "info");
+                print("  VPN: WireGuard Norwegia", "info");
+                print("  I2P: SAM API bridge aktif", "info");
+                print("  IP Publik: 91.xxx.xx.xx (Luxemburg)", "info");
+            },
+            function() {
+                print("[ANONYMITY CHECK]", "gold");
+                print("  Layer 1 (Tor): 3 hops ✓", "success");
+                print("  Layer 2 (VPN): OpenVPN AES-256 ✓", "success");
+                print("  Layer 3 (I2P): Garlic routing ✓", "success");
+                print("  Kecepatan: 12.4 Mbps, Latensi: 340 ms", "info");
+                print("  Kebocoran: DNS/WEBRTC/IPv6/TZ — NOL ✓", "success");
+            },
+            function() {
+                print("[GHOST PROTOCOL] Mode anonimitas total:", "gold");
+                print("  Tor over VPN over I2P — semua aktif.", "info");
+                print("  MAC spoofing: 00:1A:2B:3C:4D:5E", "info");
+                print("  Canvas/Battery API: dimatikan.", "info");
+                print("  IP Publik: 178.xxx.xx.xx (Swiss)", "info");
+                print("  STATUS: ANONIM TOTAL — Tidak ada data identitas bocor.", "success");
+            }
+        ];
+
+        // ============== CMD: HELP ==============
+        function cmdHelp() {
+            print("╔══════════════════════════════════════════════════════════════╗", "gold");
+            print("║           DAFTAR PERINTAH BACKDOOR MOZZAD                  ║", "gold");
+            print("╠══════════════════════════════════════════════════════════════╣", "gold");
+
+            printCmd("║  intel_feed   — Live feed intelijen global 24/7            ║");
+            printPreview(`<span class="label">CONTOH:</span> 19 laporan intel dari database Mozzad, muncul tiap 2 detik. Urutan diacak tiap kali!`);
+
+            printCmd("║  scan_region  — Pindai satelit GAIA-7, deteksi anomali      ║");
+            printPreview(`<span class="label">CONTOH:</span> Anomali termal, radar militer, kapal selam asing. 6 variasi hasil berbeda!`);
+
+            printCmd("║  decode_audio — Intersepsi & dekripsi sinyal radio HF       ║");
+            printPreview(`<span class="label">CONTOH:</span> Transkrip komunikasi militer dari Papua, Natuna, Selat Malaka. 5 variasi!`);
+
+            printCmd("║  worm_breach  — Worm eksfiltrasi data server target         ║");
+            printPreview(`<span class="label">CONTOH:</span> Curi data Kemhan, BUMN, bank sentral. 5 variasi target berbeda!`);
+
+            printCmd("║  dossier      — Profil rahasia Andhika Bhaskara (OMEGA)      ║");
+            printPreview(`<span class="label">CONTOH:</span> Data agen GHOST SINGA, riwayat operasi. 4 format tampilan berbeda!`);
+
+            printCmd("║  project_adam — Database proyek manusia super ADAM          ║");
+            printPreview(`<span class="label">CONTOH:</span> Subjek MACAN, BURON, log lab. 4 variasi laporan!`);
+
+            printCmd("║  orbital_scan — Pindai satelit mata-mata asing di orbit     ║");
+            printPreview(`<span class="label">CONTOH:</span> Satelit intai Natuna, objek tak dikenal. 4 variasi!`);
+
+            printCmd("║  darknet_relay— Rout anonim Tor + VPN + I2P                ║");
+            printPreview(`<span class="label">CONTOH:</span> 3 hop Tor, VPN, I2P. IP Islandia/Luxemburg. 4 variasi!`);
+
+            printCmd("║  wipe_log    — Hapus semua output & jejak terminal          ║");
+            printPreview(`<span class="label">CONTOH:</span> Terminal bersih total. Pesan random tiap wipe.`);
+
+            printCmd("║  abort       — Hentikan proses yang berjalan               ║");
+            printPreview(`<span class="label">CONTOH:</span> Hentikan live feed. 5 variasi pesan konfirmasi!`);
+
+            print("╚══════════════════════════════════════════════════════════════╝", "gold");
+        }
+
+        // ============== EKSEKUSI PERINTAH ==============
         function executeCommand(cmd) {
             const normalized = cmd.trim().toLowerCase();
             isAborted = false;
-
             print(`$ ${cmd}`, "command");
 
             switch (normalized) {
-                case "help":
-                    cmdHelp();
-                    break;
-                case "intel_feed":
-                    cmdIntelFeed();
-                    break;
-                case "scan_region":
-                    cmdScanRegion();
-                    break;
-                case "decode_audio":
-                    cmdDecodeAudio();
-                    break;
-                case "worm_breach":
-                    cmdWormBreach();
-                    break;
-                case "dossier":
-                    cmdDossier();
-                    break;
-                case "project_adam":
-                    cmdProjectAdam();
-                    break;
-                case "orbital_scan":
-                    cmdOrbitalScan();
-                    break;
-                case "darknet_relay":
-                    cmdDarknetRelay();
-                    break;
-                case "wipe_log":
-                    cmdWipeLog();
-                    break;
-                case "abort":
-                    cmdAbort();
-                    break;
-                case "":
-                    break;
-                default:
-                    print(`[ERROR] Perintah tidak dikenal: '${cmd}'. Ketik 'help' untuk daftar perintah.`, "error");
-                    break;
+                case "help": cmdHelp(); break;
+                case "intel_feed": cmdIntelFeed(); break;
+                case "scan_region": cmdScanRegion(); break;
+                case "decode_audio": cmdDecodeAudio(); break;
+                case "worm_breach": cmdWormBreach(); break;
+                case "dossier": cmdDossier(); break;
+                case "project_adam": cmdProjectAdam(); break;
+                case "orbital_scan": cmdOrbitalScan(); break;
+                case "darknet_relay": cmdDarknetRelay(); break;
+                case "wipe_log": cmdWipeLog(); break;
+                case "abort": cmdAbort(); break;
+                case "": break;
+                default: print(`[ERROR] Perintah '${cmd}' tidak dikenal. Ketik 'help'.`, "error"); break;
             }
 
-            setTimeout(() => {
-                terminal.scrollTop = terminal.scrollHeight;
-            }, 100);
+            setTimeout(() => terminal.scrollTop = terminal.scrollHeight, 100);
         }
 
-        // ============== EVENT: INPUT ENTER ==============
+        // ============== EVENT HANDLER ==============
         commandInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const cmd = commandInput.value.trim();
@@ -443,7 +770,6 @@
             }
         });
 
-        // ============== EVENT: KLIK PADA COMMAND DI TERMINAL ==============
         terminal.addEventListener('click', (e) => {
             const target = e.target.closest('.cmd-clickable');
             if (target) {
@@ -456,376 +782,122 @@
             }
         });
 
-        // ============== CMD: HELP (dengan preview naratif) ==============
-        function cmdHelp() {
-            print("╔══════════════════════════════════════════════════════════════╗", "gold");
-            print("║           DAFTAR PERINTAH BACKDOOR MOZZAD                  ║", "gold");
-            print("╠══════════════════════════════════════════════════════════════╣", "gold");
+        // ============== COMMAND FUNCTIONS ==============
 
-            // ─── intel_feed ───
-            printCmd("║  intel_feed   — Live feed intelijen global 24/7            ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                [LAPORAN 7/19] CITRA SATELIT - GAZA STRIP: IDF mengkonfirmasi serangan udara
-                ke terowongan Rafah malam ini. 3 rudal menghantam koordinat 31°17' N 34°15' E.
-                Intelijen Mesir menyatakan adanya peningkatan patroli perbatasan.<br>
-                <span style="color:#335533;">→ 19 laporan langsung dari database Mozzad, muncul otomatis tiap 2 detik.</span>
-            `);
-
-            // ─── scan_region ───
-            printCmd("║  scan_region  — Pindai satelit GAIA-7, deteksi anomali      ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                [ANOMALI-001] Sumber panas bawah tanah — Koordinat 6°52' S 107°12' E,
-                kedalaman 140m. Bukan sumber vulkanik. Sinyal cocok dengan pola generator nuklir skala kecil.<br>
-                [ANOMALI-004] Defleksi magnetik tidak wajar — Pola mirip medan magnet kapal perang
-                kelas destroyer. Kemungkinan kapal perang asing melintas tanpa izin.<br>
-                <span style="color:#335533;">→ Menampilkan hasil pindai satelit: anomali termal, radar, sinyal militer.</span>
-            `);
-
-            // ─── decode_audio ───
-            printCmd("║  decode_audio — Intersepsi & dekripsi sinyal radio HF       ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                "[PANDA] ke [BETA], kode konfirmasi DELTA-NOVEMBER-7-4. Pergerakan konvoi logistik
-                dimulai pukul 22:00 waktu setempat. Rute: Merauke — Tanah Merah. Escort: 2 unit."<br>
-                <span style="color:#335533;">→ Menyadap frekuensi militer 8.432 MHz, mendekripsi AES-256, menampilkan transkrip.</span>
-            `);
-
-            // ─── worm_breach ───
-            printCmd("║  worm_breach  — Worm eksfiltrasi data server target         ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                Data berhasil dieksfiltrasi: 47 dokumen PDF RAHASIA, 3 file spreadsheet
-                (1.240 entries personel militer), 12 file audio briefing komandan,
-                8 file gambar citra satelit. Total: 2.4 GB. Server drop Swiss: OK.<br>
-                <span style="color:#335533;">→ Menembus firewall target, mencuri dokumen rahasia, mengirim ke server Mozzad.</span>
-            `);
-
-            // ─── dossier ───
-            printCmd("║  dossier      — Profil rahasia Andhika Bhaskara (OMEGA)      ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                NAMA: Andhika Bhaskara. KODE: GHOST SINGA. Spesialisasi: Infiltrasi sistem,
-                intelijen siber. Lokasi: Istanbul (menyamar pengusaha fintech).
-                Catatan: Satu-satunya agen yang menyusup server Pentagon 47 menit tanpa terdeteksi.<br>
-                <span style="color:#335533;">→ Menampilkan file lengkap level OMEGA dari server pusat Mozzad.</span>
-            `);
-
-            // ─── project_adam ───
-            printCmd("║  project_adam — Database proyek manusia super ADAM          ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                SUBJEK #07 — KODE 'MACAN': Kekuatan fisik 15x lipat, regenerasi sel 5x lebih cepat,
-                tidak merasakan sakit. Status: STABIL.<br>
-                SUBJEK #12: Telekinetik 12 meter, status: BURON — dikejar Mozzad + BIN.<br>
-                <span style="color:#335533;">→ Data eksperimen DNA mutation dari lab bawah tanah Cianjur.</span>
-            `);
-
-            // ─── orbital_scan ───
-            printCmd("║  orbital_scan — Pindai satelit mata-mata asing di orbit     ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                OBJEK-0047: Orbit 450 km, station-keeping di atas Laut Natuna.
-                Dicurigai satelit intelijen asing. OBJEK-0089: Memotret grid 5°S-10°S,
-                pola cocok dengan pemetaan infrastruktur militer.<br>
-                <span style="color:#335533;">→ Menampilkan 1.247 objek orbit, 3 satelit mencurigakan teridentifikasi.</span>
-            `);
-
-            // ─── darknet_relay ───
-            printCmd("║  darknet_relay— Rout anonim Tor + VPN + I2P                ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                Tor: 3 hop (Swiss → Belanda → Islandia) ✓ | VPN: OpenVPN server Belanda ✓
-                | I2P: Tunnel aktif ✓ | DNS/WEBRTC/IPv6: tidak bocor ✓
-                IP Publik: 185.xxx.xx.xx (Islandia). Jejak digital: NOL.<br>
-                <span style="color:#335533;">→ Mengaktifkan 3 lapis anonimitas, sembunyikan jejak total.</span>
-            `);
-
-            // ─── wipe_log ───
-            printCmd("║  wipe_log    — Hapus semua output & jejak terminal          ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                [SISTEM] Semua log sesi telah dihapus. Jejak terminal bersih.
-                Tidak ada data yang dapat direcovery. Aman.<br>
-                <span style="color:#335533;">→ Membersihkan seluruh terminal, kembali ke layar bersih.</span>
-            `);
-
-            // ─── abort ───
-            printCmd("║  abort       — Hentikan proses yang berjalan               ║");
-            printPreview(`
-                <span class="label">CONTOH OUTPUT:</span><br>
-                [ABORT] Proses live feed dihentikan.<br>
-                <span style="color:#335533;">→ Menghentikan intel_feed atau proses lain yang sedang berjalan.</span>
-            `);
-
-            print("╚══════════════════════════════════════════════════════════════╝", "gold");
-        }
-
-        // ============== CMD: SCAN REGION ==============
         function cmdScanRegion() {
-            const steps = [
-                'Mengakses satelit intelijen GAIA-7...',
-                'Kalibrasi sensor inframerah & radar...',
-                'Menyapu grid koordinat 5°S - 15°S, 100°E - 125°E...',
-                'Mendeteksi anomali termal bawah tanah...',
-                'Cross-check database geospasial TNI...',
-                'Mengirim hasil ke server Mozzad...'
-            ];
-            createLoadingBar('▸ SCAN REGION | SATELIT GAIA-7', steps, () => {
-                print("[HASIL SCAN] 4 anomali signifikan:", "gold");
-                print("  [ANOMALI-001] Sumber panas bawah tanah — Koordinat 6°52' S 107°12' E, kedalaman 140m. Bukan sumber vulkanik. Sinyal cocok dengan pola generator nuklir skala kecil.", "info");
-                print("  [ANOMALI-002] Pergerakan kapal tanpa AIS — 5°50' S 110°30' E. Kecepatan 28 knot. Arah tenggara. Pola zigzag. Dicurigai kapal selam di permukaan.", "warning");
-                print("  [ANOMALI-003] Sinyal radio frekuensi militer terenkripsi — 8.432 MHz dari wilayah Papua. Enkripsi AES-256, sinyal terputus-putus.", "warning");
-                print("  [ANOMALI-004] Defleksi magnetik tidak wajar — 8°14' S 115°20' E. Pola mirip medan magnet kapal perang kelas destroyer. Kemungkinan kapal perang asing melintas tanpa izin.", "access");
-                print("[SCAN SELESAI] Data dikirim ke server pusat Mozzad via jalur aman.", "success");
-            });
+            const labels = ['▸ SCAN REGION | GAIA-7', '▸ REGIONAL SWEEP | GAIA-7', '▸ PINDAI WILAYAH | GAIA-7', '▸ SCAN ANOMALI | GAIA-7', '▸ THERMAL SCAN | GAIA-7', '▸ SWEEP GRID | GAIA-7'];
+            const steps = ['Akses satelit GAIA-7...', 'Kalibrasi sensor...', 'Sapu grid koordinat...', 'Deteksi anomali...', 'Cross-check database...', 'Kirim hasil...'];
+            createLoadingBar(pickRandom(labels), steps, () => pickRandom(scanVariations)());
         }
 
-        // ============== CMD: DECODE AUDIO ==============
         function cmdDecodeAudio() {
-            const steps = [
-                'Memasang antenna HF loop pada frekuensi 8.432 MHz...',
-                'Menyadap sinyal radio militer terenkripsi...',
-                'Menjalankan algoritma dekripsi AES-256...',
-                'Menerjemahkan sandi militer ke bahasa Indonesia...',
-                'Menulis transkrip hasil intersepsi...'
-            ];
-            createLoadingBar('▸ DECODE AUDIO | INTERSEPSI HF MILITER', steps, () => {
-                print("[TRANSCRIPT - INTERCEPTED 2026-06-14 19:44:12 UTC]", "gold");
-                print("  SUMBER: Stasiun radio militer, koordinat diperkirakan 8°30' S 140°30' E (Merauke).", "dim");
-                print("  ISI PESAN (setelah dekripsi):", "info");
-                print("  \"[PANDA] ke [BETA], kode konfirmasi DELTA-NOVEMBER-7-4. Pergerakan konvoi logistik", "info");
-                print("   dimulai pukul 22:00 waktu setempat. Rute: Merauke — Tanah Merah. Escort: 2 unit.", "info");
-                print("   Ulangi: 2 unit pengawal. Hindari checkpoint di KM 47. Akhiri pesan.\"", "info");
-                print("  [ANALISIS MOZZAD] Kemungkinan operasi pengiriman material khusus ke wilayah perbatasan.", "warning");
-                print("  Direkomendasikan pemantauan lanjutan pada frekuensi 8.432 MHz dan 12.750 MHz.", "warning");
-                print("[DECODE SELESAI] Transkrip diamankan di database lokal.", "success");
-            });
+            const labels = ['▸ DECODE AUDIO | HF MILITER', '▸ RADIO INTERCEPT', '▸ DEKRIPSI SINYAL', '▸ HF DECODE', '▸ SADAPAN RADIO'];
+            const steps = ['Pasang antenna HF...', 'Sinyal radio...', 'Dekripsi AES-256...', 'Terjemahkan sandi...', 'Tulis transkrip...'];
+            createLoadingBar(pickRandom(labels), steps, () => pickRandom(decodeVariations)());
         }
 
-        // ============== CMD: WORM BREACH ==============
         function cmdWormBreach() {
-            const steps = [
-                'Mengaktifkan worm eksfiltrasi varian NIGHTSHADE...',
-                'Menembus firewall target via celah CVE-2026-4417...',
-                'Membackdoor server database PostgreSQL...',
-                'Mencuri dokumen rahasia level RAHASIA & SANGAT RAHASIA...',
-                'Mengompres & mengenkripsi data dengan algoritma proprietary...',
-                'Mengirim data ke server drop Mozzad di Swiss...'
-            ];
-            createLoadingBar('▸ WORM BREACH | EKSFILTRASI DATA', steps, () => {
-                print("[WORM NIGHTSHADE BERHASIL]", "access");
-                print("  Target: Server Kementerian Pertahanan negara tetangga", "info");
-                print("  Data berhasil dieksfiltrasi:", "gold");
-                print("  • 47 dokumen PDF — RAHASIA", "info");
-                print("  • 3 file spreadsheet — data personel militer (1.240 entries)", "info");
-                print("  • 12 file audio — rekaman briefing komandan", "info");
-                print("  • 8 file gambar — citra satelit pangkalan militer", "info");
-                print("  Total: 2.4 GB data terenkripsi.", "success");
-                print("  Server drop di Swiss (IP: 185.xxx.xx.xx:443) menerima data.", "success");
-                print("  [PERINGATAN] Worm telah menghapus jejak di sistem target.", "warning");
-            });
+            const labels = ['▸ WORM BREACH | EKSFILTRASI', '▸ WORM NIGHTSHADE', '▸ OPERASI SILENT', '▸ CYBER INTRUSION', '▸ WORM DEPLOY'];
+            const steps = ['Aktifkan worm...', 'Tembus firewall...', 'Backdoor database...', 'Curi dokumen...', 'Enkripsi data...', 'Kirim ke server drop...'];
+            createLoadingBar(pickRandom(labels), steps, () => pickRandom(wormVariations)());
         }
 
-        // ============== CMD: DOSSIER ==============
         function cmdDossier() {
-            const steps = [
-                'Mengakses server pusat Mozzad — kredensial level OMEGA...',
-                'Melewati otentikasi biometrik + retina scan jarak jauh...',
-                'Mendownload file dossier AGT: Andhika Bhaskara...',
-                'Mendekripsi file dengan kunci pribadi...',
-                'Menampilkan hasil...'
-            ];
-            createLoadingBar('▸ DOSSIER | MOZZAD LEVEL OMEGA', steps, () => {
-                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
-                print("▓              DOSSIER MOZZAD — LEVEL OMEGA              ▓", "access");
-                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
-                print("  NAMA LENGKAP   : Andhika Bhaskara", "info");
-                print("  NAMA KODE      : GHOST SINGA", "info");
-                print("  TANGGAL LAHIR  : 14 Februari 1990 (36 thn)", "info");
-                print("  STATUS         : AKTIF — Asset Mozzad sejak 2022", "info");
-                print("  SPESIALISASI   : Infiltrasi sistem, intelijen siber,", "info");
-                print("                   jaringan selular Timur Tengah", "info");
-                print("  LOKASI TERAKHIR: Istanbul, Turki (menyamar pengusaha fintech)", "info");
-                print("  KONTAK HANDLER : Kode 'Songkok Biru' — frekuensi 7.440 MHz", "info");
-                print("  IMBALAN        : Rp 47 Miliar (Operasi BATU HITAM)", "info");
-                print("  LEVEL AKSES    : OMEGA — seluruh database Intelijen Mozzad", "access");
-                print("  CATATAN KHUSUS : Satu-satunya agen yang pernah menyusup", "info");
-                print("                   ke server Pentagon selama 47 menit tanpa", "info");
-                print("                   terdeteksi. Rekor ini belum terpecahkan.", "warning");
-                print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓", "access");
-            });
+            const labels = ['▸ DOSSIER | LEVEL OMEGA', '▸ PERSONNEL FILE', '▸ AKSES DATABASE', '▸ FILE RAHASIA', '▸ DOSSIER DECRYPT'];
+            const steps = ['Akses server pusat...', 'Otentikasi biometrik...', 'Download file...', 'Dekripsi...', 'Tampilkan...'];
+            createLoadingBar(pickRandom(labels), steps, () => pickRandom(dossierVariations)());
         }
 
-        // ============== CMD: PROJECT ADAM ==============
         function cmdProjectAdam() {
-            const steps = [
-                'Mengakses server laboratorium bawah tanah Cianjur...',
-                'Melewati firewall biometrik + enkripsi kuantum...',
-                'Mendownload database proyek ADAM...',
-                'Memuat data subjek dan hasil eksperimen...',
-                'Merender data ke terminal...'
-            ];
-            createLoadingBar('▸ PROJECT ADAM | ADVANCED DNA MUTATION', steps, () => {
-                print("████████████████████████████████████████████████████", "access");
-                print("██         PROYEK ADAM — ADVANCED DNA MUTATION       ██", "access");
-                print("████████████████████████████████████████████████████", "access");
-                print("  FASILITAS : Laboratorium bawah tanah, Cianjur, Jawa Barat", "info");
-                print("  DANA      : Investor asing via shell company Panama", "info");
-                print("  TUJUAN    : Menciptakan prajurit super (super soldier)", "info");
-                print("──────────────────────────────────────────────────────────", "dim");
-                print("  SUBJEK #07 — KODE 'MACAN'", "gold");
-                print("  • Kekuatan fisik: 15x lipat manusia normal", "info");
-                print("  • Regenerasi sel: 5x lebih cepat", "info");
-                print("  • Tidak merasakan sakit (analgesia congenital)", "info");
-                print("  • Status: STABIL — dalam masa observasi", "success");
-                print("──────────────────────────────────────────────────────────", "dim");
-                print("  SUBJEK #12 — KODE '????'", "warning");
-                print("  • Kemampuan: Telekinetik jarak 12 meter", "info");
-                print("  • Manipulasi frekuensi otak untuk mematikan sensor", "info");
-                print("  • Status: BURON — kabur dari fasilitas", "access");
-                print("  • Koordinat terakhir: 6°50' S 107°10' E", "warning");
-                print("  • Mozzad + BIN terlibat dalam pengejaran", "warning");
-                print("──────────────────────────────────────────────────────────", "dim");
-                print("  SUBJEK #04 — KODE 'BUNGALOW'", "gold");
-                print("  • Kemampuan: Siluman bio-kromatik (menghilang optikal)", "info");
-                print("  • Durasi: 47 detik", "info");
-                print("  • Efek samping: radiasi gamma rendah dari tubuh", "warning");
-                print("  • Status: DIKARANTINA — fasilitas Gunung Salak", "info");
-                print("████████████████████████████████████████████████████", "access");
-            });
+            const labels = ['▸ PROJECT ADAM | DNA', '▸ LAB DATABASE', '▸ SUBJEK DATABASE', '▸ EKSPERIMEN DNA', '▸ SUPER SOLDIER'];
+            const steps = ['Akses server lab Cianjur...', 'Firewall biometrik...', 'Download database...', 'Load data subjek...', 'Render ke terminal...'];
+            createLoadingBar(pickRandom(labels), steps, () => pickRandom(adamVariations)());
         }
 
-        // ============== CMD: ORBITAL SCAN ==============
         function cmdOrbitalScan() {
-            const steps = [
-                'Mengakses radar orbital stasiun bumi Mozzad...',
-                'Menyapu orbit LEO (Low Earth Orbit)...',
-                'Menyapu orbit GEO (Geostasioner)...',
-                'Melakukan cross-referensi database satelit...',
-                'Mengidentifikasi satelit mencurigakan...'
-            ];
-            createLoadingBar('▸ ORBITAL SCAN | SATELIT MATA-MATA', steps, () => {
-                print("[ORBITAL SWEEP COMPLETE]", "gold");
-                print("  Total satelit terdeteksi: 1.247 objek di LEO + GEO", "dim");
-                print("──────────────────────────────────────────────────", "dim");
-                print("  SATELIT MENCURIGAKAN (tidak terdaftar di UN Registry):", "access");
-                print("  • OBJEK-0047: Orbit 450 km, inklinasi 72°. Pola gerak: station-keeping", "warning");
-                print("    di atas wilayah Laut Natuna. Dicurigai satelit intelijen asing.", "warning");
-                print("  • OBJEK-0089: Orbit 780 km, sinkron matahari. Memotret secara sistematis", "warning");
-                print("    grid 5°S - 10°S. Pola cocok dengan misi pemetaan infrastruktur militer.", "warning");
-                print("  • OBJEK-0122: Orbit GEO 95° BT. Satelit komunikasi dengan sinyal tidak", "warning");
-                print("    standar ITU. Dicurigai sebagai relay intelijen asing.", "warning");
-                print("──────────────────────────────────────────────────", "dim");
-                print("[REKOMENDASI] Laporkan OBJEK-0047 ke Kementerian Pertahanan untuk", "info");
-                print("tindakan diplomatik. OBJEK-0089 dan OBJEK-0122 memerlukan monitoring rutin.", "info");
-            });
+            const labels = ['▸ ORBITAL SCAN', '▸ SPACE SWEEP', '▸ SATELIT TRACKING', '▸ DEEP SPACE SCAN', '▸ ORBITAL SURVEILLANCE'];
+            const steps = ['Akses radar orbital...', 'Sapu LEO...', 'Sapu GEO...', 'Cross-referensi...', 'Identifikasi...'];
+            createLoadingBar(pickRandom(labels), steps, () => pickRandom(orbitalVariations)());
         }
 
-        // ============== CMD: DARKNET RELAY ==============
         function cmdDarknetRelay() {
-            const steps = [
-                'Mengaktifkan Tor daemon...',
-                'Merut ulang koneksi via 3 node Tor di Swiss, Belanda, Islandia...',
-                'Menambahkan lapisan VPN (server Belanda)...',
-                'Merut via I2P (Invisible Internet Project)...',
-                'Memastikan tidak ada kebocoran DNS/IPv6/WebRTC...',
-                'Koneksi siap — semua jejak terhapus...'
-            ];
-            createLoadingBar('▸ DARKNET RELAY | ROUT ANONIM', steps, () => {
-                print("[RELAY STATUS] Koneksi aman & anonim:", "gold");
-                print("  • Tor: 3 hop ✓ (Swiss → Belanda → Islandia)", "success");
-                print("  • VPN: OpenVPN server Belanda ✓ (IP: 45.xxx.xx.xx)", "success");
-                print("  • I2P: Tunnel aktif ✓", "success");
-                print("  • DNS: via Tor (tidak bocor) ✓", "success");
-                print("  • WebRTC: dimatikan ✓", "success");
-                print("  • IPv6: dimatikan ✓", "success");
-                print("  ───────────────────────────────────", "dim");
-                print("  IP Publik kamu sekarang: 185.xxx.xx.xx (Islandia)", "info");
-                print("  Semua traffic dirutkan melalui 3 lapisan enkripsi.", "info");
-                print("  Jejak digital: NOL — bersih total.", "success");
-            });
+            const labels = ['▸ DARKNET RELAY', '▸ GHOST PROTOCOL', '▸ TOR+VPN+I2P', '▸ ANONYMITY CHAIN', '▸ DARKNET TUNNEL'];
+            const steps = ['Aktifkan Tor...', '3 node Tor...', 'Lapisan VPN...', 'I2P...', 'Cek kebocoran...', 'Siap...'];
+            createLoadingBar(pickRandom(labels), steps, () => pickRandom(darknetVariations)());
         }
 
-        // ============== CMD: WIPE LOG ==============
+        function cmdIntelFeed() {
+            if (isLiveMode) {
+                print("[PERINGATAN] Live feed sudah berjalan. Ketik 'abort' untuk berhenti.", "warning");
+                return;
+            }
+            isLiveMode = true;
+            isAborted = false;
+            print("[LIVE FEED] Feed intelijen global diaktifkan. 19 laporan, urutan diacak!", "info");
+            print("[LIVE FEED] Tekan 'abort' untuk berhenti kapan saja.", "dim");
+
+            const shuffled = getShuffledIntel();
+            let idx = 0;
+            const speed = randInt(1500, 3500);
+
+            liveInterval = setInterval(() => {
+                if (isAborted || idx >= shuffled.length) {
+                    clearInterval(liveInterval);
+                    liveInterval = null;
+                    isLiveMode = false;
+                    if (idx >= shuffled.length) print("[LIVE FEED] Semua laporan selesai.", "success");
+                    else print("[LIVE FEED] Dihentikan user.", "warning");
+                    return;
+                }
+                print(`[LAPORAN ${idx+1}/${shuffled.length}] ${shuffled[idx]}`, "live-data");
+                idx++;
+                terminal.scrollTop = terminal.scrollHeight;
+            }, speed);
+        }
+
+        function cmdAbort() {
+            if (isLiveMode && liveInterval) {
+                isAborted = true;
+                const msgs = ['[ABORT] Live feed dihentikan.', '[ABORT] Feed dihentikan paksa.', '[ABORT] Operasi dibatalkan.', '[ABORT] User menghentikan proses.', '[ABORT] Feed terminated.'];
+                print(pickRandom(msgs), "warning");
+            } else {
+                const msgs = ['[INFO] Tidak ada proses berjalan.', '[INFO] Semua proses idle.', '[INFO] Tidak ada operasi aktif.', '[INFO] Tidak ada feed yang berjalan.'];
+                print(pickRandom(msgs), "info");
+            }
+        }
+
         function cmdWipeLog() {
-            const steps = [
-                'Mengakses log sesi terminal...',
-                'Menimpa (overwrite) data log dengan null bytes...',
-                'Menghapus metadata terminal...',
-                'Membersihkan cache & history...',
-                'Verifikasi penghapusan...'
-            ];
-            createLoadingBar('▸ WIPE LOG | PEMBERSIHAN JEJAK', steps, () => {
+            const labels = ['▸ WIPE LOG', '▸ LOG CLEANUP', '▸ HAPUS JEJAK', '▸ SECURE DELETION', '▸ CLEAN SESSION'];
+            const steps = ['Akses log...', 'Overwrite null bytes...', 'Hapus metadata...', 'Bersihkan cache...', 'Verifikasi...'];
+            createLoadingBar(pickRandom(labels), steps, () => {
                 terminal.innerHTML = `
                     <div class="header">███ BACKDOOR MOZZAD v5.1.2 — ENCRYPTED CHANNEL ███</div>
                     <div class="subtitle">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
                     <div id="clock">[AGT: ANDHIKA BHASKARA] [NODE: AKTIF] [WAKTU: --:--:-- WIB]</div>
                 `;
                 updateClock();
-                print("[SISTEM] Semua log sesi telah dihapus. Jejak terminal bersih.", "success");
-                print("[SISTEM] Tidak ada data yang dapat direcovery. Aman.", "success");
+                const msgs = ['[SISTEM] Semua log dihapus. Terminal bersih.', '[SISTEM] Tidak ada data bisa direcovery.', '[SISTEM] 47 baris log dihapus permanen.', '[SISTEM] Forensik digital tidak mungkin.', '[SISTEM] Terminal bersih total.'];
+                print(pickRandom(msgs), "success");
+                const tips = ['[TIP] Jangan lupa wipe log server tujuan.', '[TIP] Restart terminal setelah wipe.', '[TIP] Mode GHOST aktif.', '[TIP] Ganti relay node setelah wipe.'];
+                print(pickRandom(tips), "dim");
             });
         }
 
-        // ============== CMD: INTEL FEED ==============
-        function cmdIntelFeed() {
-            if (isLiveMode) {
-                print("[PERINGATAN] Live feed sudah berjalan. Ketik 'abort' untuk menghentikan.", "warning");
-                return;
-            }
-            isLiveMode = true;
-            isAborted = false;
-            print("[LIVE FEED] Feed intelijen global diaktifkan. Menampilkan 19 laporan...", "info");
-            print("[LIVE FEED] Tekan 'abort' untuk menghentikan kapan saja.", "dim");
-
-            let idx = 0;
-            liveInterval = setInterval(() => {
-                if (isAborted || idx >= databaseIntel.length) {
-                    clearInterval(liveInterval);
-                    liveInterval = null;
-                    isLiveMode = false;
-                    if (idx >= databaseIntel.length) {
-                        print("[LIVE FEED] Semua laporan telah ditampilkan. Feed selesai.", "success");
-                    } else {
-                        print("[LIVE FEED] Dihentikan oleh user.", "warning");
-                    }
-                    return;
-                }
-                print(`[LAPORAN ${idx+1}/${databaseIntel.length}] ${databaseIntel[idx]}`, "live-data");
-                idx++;
-                terminal.scrollTop = terminal.scrollHeight;
-            }, 2000);
-        }
-
-        // ============== CMD: ABORT ==============
-        function cmdAbort() {
-            if (isLiveMode && liveInterval) {
-                isAborted = true;
-                print("[ABORT] Proses live feed dihentikan.", "warning");
-            } else {
-                print("[INFO] Tidak ada proses yang berjalan untuk dihentikan.", "info");
-            }
-        }
-
-        // ============== AUTO-RUN HELP SAAT LOAD ==============
+        // ============== AUTO LOAD ==============
         window.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
-                print("[SISTEM] Backdoor Mozzad v5.1.2 — Encrypted Channel aktif.", "success");
-                print("[SISTEM] Selamat datang, Andhika. Semua sistem siap.", "success");
-                print("[SISTEM] Ketik 'help' atau klik perintah di bawah untuk memulai.", "info");
+                const greetings = ['[SISTEM] Backdoor Mozzad v5.1.2 aktif.', '[SISTEM] Encrypted channel established.', '[SISTEM] Koneksi aman terverifikasi.', '[SISTEM] Backdoor channel aktif.', '[SISTEM] Terminal siap.'];
+                print(pickRandom(greetings), "success");
+                const welcomes = ['[SISTEM] Selamat datang, Andhika.', '[SISTEM] GHOST SINGA online.', '[SISTEM] Selamat bertugas, Agent.', '[SISTEM] Andhika Bhaskara terverifikasi.', '[SISTEM] Agent terkonfirmasi.'];
+                print(pickRandom(welcomes), "success");
+                print("[SISTEM] Ketik 'help' atau klik perintah di bawah.", "info");
                 cmdHelp();
             }, 500);
         });
 
-        // Fokus ke input saat area terminal diklik (tapi bukan cmd-clickable)
         terminal.addEventListener('click', (e) => {
-            if (!e.target.closest('.cmd-clickable')) {
-                commandInput.focus();
-            }
+            if (!e.target.closest('.cmd-clickable')) commandInput.focus();
         });
-
         commandInput.focus();
     </script>
 </body>
